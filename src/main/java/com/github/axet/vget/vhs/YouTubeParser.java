@@ -200,7 +200,9 @@ public class YouTubeParser extends VGetParser {
             List<VideoDownload> sNextVideoURL = new ArrayList<VideoDownload>();
 
             try {
+            	//TODO this doesn't work anymore due to latest changes of youtube player we are using Embedded version instead
                 streamCpature(sNextVideoURL, info, stop, notify);
+                //throw new DownloadError();
             } catch (DownloadError e) {
                 try {
                     extractEmbedded(sNextVideoURL, info, stop, notify);
@@ -227,7 +229,12 @@ public class YouTubeParser extends VGetParser {
     void streamCpature(List<VideoDownload> sNextVideoURL, final VideoInfo info, final AtomicBoolean stop,
             final Runnable notify) throws Exception {
         String html;
-        html = WGet.getHtml(info.getWeb(), new WGet.HtmlLoader() {
+        
+        DownloadInfo downloadInfo = new DownloadInfo(info.getWeb());	
+        //TODO Testing around with different user agent's to receive mobile version html code in return, but the regex are not meant to work with this piece of html
+        //downloadInfo.setUserAgent("Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3");
+        
+        html = WGet.getHtml(downloadInfo, new WGet.HtmlLoader() {
             @Override
             public void notifyRetry(int delay, Throwable e) {
                 info.setDelay(delay, e);
@@ -246,6 +253,7 @@ public class YouTubeParser extends VGetParser {
                 notify.run();
             }
         }, stop);
+        
         extractHtmlInfo(sNextVideoURL, info, html, stop, notify);
         extractIcon(info, html);
     }
@@ -380,11 +388,14 @@ public class YouTubeParser extends VGetParser {
 
         info.setTitle(String.format("http://www.youtube.com/watch?v=%s", id));
 
-        String get = String.format("http://www.youtube.com/get_video_info?authuser=0&video_id=%s&el=embedded", id);
+        String get = String.format("http://www.youtube.com/get_video_info?authuser=0&video_id=%s", id);
 
         URL url = new URL(get);
 
-        String qs = WGet.getHtml(url, new WGet.HtmlLoader() {
+        DownloadInfo downloadInfo = new DownloadInfo(url);	
+        downloadInfo.setUserAgent("Mozilla/5.0 (iPhone; U; CPU like Mac OS X; en) AppleWebKit/420+ (KHTML, like Gecko) Version/3.0 Mobile/1A543 Safari/419.3");
+        
+        String qs = WGet.getHtml(downloadInfo, new WGet.HtmlLoader() {
             @Override
             public void notifyRetry(int delay, Throwable e) {
                 info.setDelay(delay, e);
@@ -481,7 +492,7 @@ public class YouTubeParser extends VGetParser {
 
         // combined streams
         {
-            Pattern urlencod = Pattern.compile("\"url_encoded_fmt_stream_map\": \"([^\"]*)\"");
+            Pattern urlencod = Pattern.compile("\"url_encoded_fmt_stream_map\":\"([^\"]*)\"");
             Matcher urlencodMatch = urlencod.matcher(html);
             if (urlencodMatch.find()) {
                 String url_encoded_fmt_stream_map;
